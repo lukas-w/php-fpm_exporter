@@ -48,6 +48,7 @@ type Exporter struct {
 	processRequests          *prometheus.Desc
 	processLastRequestMemory *prometheus.Desc
 	processLastRequestCPU    *prometheus.Desc
+	contentLength            *prometheus.Desc
 	processRequestDuration   *prometheus.Desc
 	processState             *prometheus.Desc
 }
@@ -155,6 +156,12 @@ func NewExporter(pm PoolManager) *Exporter {
 			[]string{"pool", "child", "scrape_uri", "method", "uri", "script"},
 			nil),
 
+		contentLength: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "content_length"),
+			"The content length of the last request (only with POST)",
+			[]string{"pool", "child", "scrape_uri", "method", "uri", "script"},
+			nil),
+
 		processRequestDuration: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "process_request_duration"),
 			"The duration in microseconds of the requests.",
@@ -213,7 +220,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 		for childNumber, process := range pool.Processes {
 			childName := fmt.Sprintf("%d", childNumber)
-			
+
 			states := map[string]int{
 				PoolProcessRequestIdle:           0,
 				PoolProcessRequestRunning:        0,
@@ -231,6 +238,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(e.processLastRequestMemory, prometheus.GaugeValue, float64(process.LastRequestMemory), pool.Name, childName, pool.Address, process.RequestMethod, process.RequestURI, process.Script)
 			ch <- prometheus.MustNewConstMetric(e.processLastRequestCPU, prometheus.GaugeValue, process.LastRequestCPU, pool.Name, childName, pool.Address, process.RequestMethod, process.RequestURI, process.Script)
 			ch <- prometheus.MustNewConstMetric(e.processRequestDuration, prometheus.GaugeValue, float64(process.RequestDuration), pool.Name, childName, pool.Address, process.RequestMethod, process.RequestURI, process.Script)
+			ch <- prometheus.MustNewConstMetric(e.contentLength, prometheus.GaugeValue, float64(process.ContentLength), pool.Name, childName, pool.Address, process.RequestMethod, process.RequestURI, process.Script)
 		}
 	}
 }
