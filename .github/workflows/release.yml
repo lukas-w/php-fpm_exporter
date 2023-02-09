@@ -1,5 +1,10 @@
 name: Release
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  # Release patches and secruity updates on a schedule
+  schedule:
+    - cron: "0 0 1 * *"
+
 jobs:
   tag:
     name: Tag
@@ -8,13 +13,12 @@ jobs:
     steps:
 
     - name: Setup Node.js for use with actions
-      uses: actions/setup-node@v2.4.0
+      uses: actions/setup-node@v3
 
     - name: Checkout
-      uses: actions/checkout@v2.3.4
-
-    - name: Unshallow
-      run: git fetch --prune --unshallow
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Install semantic-release
       run: yarn global add --no-progress --non-interactive "semantic-release" "@semantic-release/exec"
@@ -30,25 +34,31 @@ jobs:
     needs: [tag]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2.3.4
-
-      - name: Unshallow
-        run: git fetch --prune --unshallow
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v2.1.4
+        uses: actions/setup-go@v3.3.1
         with:
-          go-version: ^1.15.0
+          go-version: 1.17
         id: go
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1.10.0
+        uses: docker/login-action@v2.0.0
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2.7.0
+        uses: goreleaser/goreleaser-action@v4.2.0
         with:
           version: latest
           args: release --rm-dist
